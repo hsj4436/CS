@@ -23,6 +23,8 @@ kernel이 **주요 기능**들을 user program이 사용할 수 있도록 안전
 - 프로세스간 통신
 - 메모리 추가 할당
 
+<br/>
+
 ## 2. Process
 An instance of a program in execution(실행중인 프로그램)
 
@@ -56,7 +58,9 @@ An instance of a program in execution(실행중인 프로그램)
         - 각 프로세스는 기본적으로 STDIN, STDOUT, STDERR라는 세 개의 file descriptor를 가짐
 5. 흔히 main()이라 불리는 진입점부터 프로그램이 실행
 
+<br/>
 프로세스의 상태
+
 프로세스는 세 개의 상태를 갖는다.
 - Running
     - 프로세스가 CPU를 할당받아 실행중인 상태
@@ -65,6 +69,8 @@ An instance of a program in execution(실행중인 프로그램)
 - Blocked
     - I/O 혹은 어떤 이벤트 때문에 실행 중단 상태
     - 프로세스가 디스크에 I/O 작업을 요청하면, blocked 상태가 되고 그 덕에 다른 프로세스가 CPU를 사용
+
+<br/>
 
 ### PCB(Process Control Block)
 프로세스에 대한 정보를 포함
@@ -76,6 +82,8 @@ An instance of a program in execution(실행중인 프로그램)
 - File management information
 - I/O status information
 - Credentials
+
+<br/>
 
 ### Context Switch
 한 프로세스에서 다른 프로세스로 CPU 제어권을 넘기는 것
@@ -97,6 +105,7 @@ timer interrupt에 의한 context switch 과정
     - 일정 시간마다 timer interrupt 발생
 ![contextSwitchBasedTimerInterrupt](contextSwitchBasedTimerInterrupt.png)
 
+<br/>
 
 ## 3. Scheduling
 기본적으로 각 CPU 코어는 한 번에 하나의 프로세스를 실행할 수 있다. 단일 CPU 코어가 있는 시스템의 경우 한 번에 2개 이상의 프로세스가 실행될 수 없지만, 다중 코어 시스템은 한 번에 여러 프로세스를 실행할 수 있다.
@@ -109,20 +118,24 @@ timer interrupt에 의한 context switch 과정
 - 스케줄러가 프로세스에 interrupt를 걸고 context switch를 강제할 수 있음
 
 
-1. FIFO(First In, First Out)
+### 1. FIFO(First In, First Out)
 - 비선점형
 - 들어온 순서대로 수행
 - 실생활에서 줄 서는 것과 같은 방식
 - Convoy Effect
     - 먼저 도착한 작업의 수행 시간이 아주 길다면, 간발의 차로 도착한 작업의 수행 시간이 짧더라도 앞의 작업이 끝날 때까지 기다려야 함
 
-2. SJF(Shortest Job First)
+<br/>
+
+### 2. SJF(Shortest Job First)
 - 비선점형
 - 수행 시간이 짧은 것부터 처리
 - Convoy Effect
     - 가장 먼저 도착한 작업의 수행 시간이 아주 길고, 간발의 차로 도착한 작업의 수행 시간이 아주 짧더라도 이미 수행중인 앞의 작업이 끝날 때까지 기다려야 함
 
-3. STCF(Shortest Time to Completion First)
+<br/>
+
+### 3. STCF(Shortest Time to Completion First)
 - SJF에 선점형 방식 추가
 - 작업의 순서를 완료까지 남은 시간이 가장 짧은 순으로 스케줄링
 - e.g.
@@ -130,7 +143,9 @@ timer interrupt에 의한 context switch 과정
     - 10초짜리 작업 B, C가 차례로 도착
     - 수행중이던 A를 멈추고 B, C를 수행한 후 나머지 A 작업 수행
 
-4. RR(Round Robin)
+<br/>
+
+### 4. RR(Round Robin)
 - 선점형
 - No startvation(기아 현상)
 - Time slicing 스케줄링
@@ -142,6 +157,8 @@ timer interrupt에 의한 context switch 과정
 
 위 방식들은 real world에서는 좋은 퍼포먼스를 내기 힘듦
 
+<br/>
+
 ### MLFQ(Multi-Level Feedback Queue)
 각각의 우선 순위를 가지는 queue들을 보유
 
@@ -152,7 +169,7 @@ timer interrupt에 의한 context switch 과정
 3. 모든 프로세스는 처음 시스템에 진입 시, 가장 우선 순위가 높은 queue에서 작업을 시작
 
 4. 작업이 해당 우선 순위에 할당된 time slice를 다 쓰고도 작업이 끝나지 않았다면, CPU-intensive Job(인코딩, 컴파일 같이 긴 시간이 필요하고 response time은 별로 중요하지 않은 작업)으로 판단하고 우선 순위를 감소 시켜 후순위 queue에 배치
-- time slice가 10ms일 때, 어떤 작업이 매 CPU할당 때마다 9ms씩 CPU를 사용하고 반납하더라도, 작업을 반복하여 총 10ms를 다 사용하게 된다면 강등시킨다
+    - time slice가 10ms일 때, 어떤 작업이 매 CPU할당 때마다 9ms씩 CPU를 사용하고 반납하더라도, 작업을 반복하여 총 10ms를 다 사용하게 된다면 강등시킨다
 
 5. 작업이 time slice 이전에 CPU를 반환한다면 interactive job으로 판단하고 우선 순위를 유지
 
