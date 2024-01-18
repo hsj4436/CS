@@ -1,5 +1,19 @@
 # Operating Systems
 
+- [1. OS](#1-os)
+- [2. Process](#2-process)
+    - [PCB](#pcbprocess-control-block)
+    - [Context Switch](#context-switch)
+- [3. Scheduling](#3-scheduling)
+    - [MLFQ](#mlfqmulti-level-feedback-queue)
+- [4. Virtual Memory](#4-virtual-memory)
+    - [Segmentation](#4-1-segmentation)
+    - [Paging](#4-2-paging)
+    - [TLB](#4-3-tlbstranslation-look-aside-buffers)
+
+<br/>
+
+
 ## 1. OS
 하드웨어와 응용 프로그램 사이의 인터페이스, 중재자 역할.
 CPU, 메모리, I/O 장치, 저장장치 등의 하드웨어 자원들을 관리하고 프로그램들이 상호작용할 수 있도록 한다.
@@ -174,3 +188,143 @@ timer interrupt에 의한 context switch 과정
 5. 작업이 time slice 이전에 CPU를 반환한다면 interactive job으로 판단하고 우선 순위를 유지
 
 6. 일정 주기마다 모든 작업을 가장 우선 순위가 높은 queue로 이동시켜 startvation을 방지하는 aging 기법 적용
+
+<br/>
+
+## 4. Virtual Memory
+메모리 가상화를 하는 이유?
+- 옛날과 달리 여러 개의 프로세스가 메모리에 로드되게 됨
+- 각 프로세스에게 가상의 메모리 공간을 제공함으로써 각 프로세스가 메모리를 사용하는 것처럼 인식하게 함
+
+<br/>
+
+메모리 가상화의 목표
+- 투명성
+    - 각 프로세스가 자신이 제공받은 메모리 공간이 가상이라는 것을 모르도록 해야 함
+- 보호
+    - 다른 프로세스로 부터 OS를 보호
+    - 각 프로세스들도 다른 프로세스들로 부터 자신의 메모리 공간을 침범당하지 않도록 보호
+
+<br/>
+
+**Address Space(가상의 메모리 공간)**
+
+OS는 물리 메모리의 추상화를 제공
+
+가상의 메모리 공간에는 실행중인 프로세스에 대한 모든 것이 들어있음  
+
+Address Translation  
+메모리 가상화에서 가상 메모리 공간을 실제 물리 메모리의 주소로 변환하는 과정을 register, TLB(Translation Look-aside Buffer), page-table과 같은 하드웨어의 지원을 받아 처리한다.  
+
+### 4-1. Segmentation  
+
+가상의 메모리 공간을 논리적 단위의 세그먼트로 나눈다.
+- code, stack, heap  
+
+논리적 단위의 세그먼트로 나누게 되면 각 세그먼트는 독립적으로 물리 메모리의 여러 곳에 나누어 위치할 수 있게 됨  
+
+단, 이때 스택은 높은 주소에서 낮은 주소 방향으로 자라기 때문에 이를 위해 하드웨어의 지원을 통해 positive 방향으로 자라는지, negative 방향으로 자라는지 체크하게 됨  
+
+장점  
+- 내부 파편화가 없음  
+- 스택과 힙이 독립적으로 자랄 수 있음
+
+단점  
+- 외부 파편화의 문제로 큰 단위의 세그먼트를 물리 메모리에 위치시키지 못할 수 있음  
+- 외부 파편화를 compaction(메모리를 한쪽으로 몰아버리는)으로 해결할 수 있지만 비용이 비쌈 
+
+
+### 4-2. Paging  
+
+고정 사이즈의 유닛인 page 단위로 address space(가상의 메모리 공간)을 나눌 수 있음  
+
+물리 메모리 또한 page와 같은 크기의 page frame으로 나누어 짐  
+
+가상 메모리 주소를 물리 메모리 주소로 변환하기 위해 프로세스 마다 page table(page와 page frame의 연결 관계 관리)이 필요  
+
+<br/>
+
+각 프로세스의 물리 메모리 공간을 연속으로 배치할 필요가 없어짐
+- 가상 메모리는 같은 크기의 page로 나누고, 물리 메모리는 같은 크기의 page frame으로 나눔  
+- page 혹은 page frame의 크기는 2의 제곱승(일반적으로 Linux에서의 page 크기 = 4KB)  
+
+<br/>
+
+메모리 관리가 용이해짐  
+- OS는 비어있는 page frame들을 추적함  
+- N개 page 크기의 프로그램을 실행시키기 위해 N개의 비어있는 page frame만 찾으면 됨  
+- 가상 메모리를 물리 메모리로 변환하기 위해 page table을 관리  
+- 외부 파편화가 없음  
+
+
+virtual address = VPN(virtual page number, page table 내에서의 index) + offset  
+
+physical address = PFN(page frame number) + offset  
+
+Page table  
+OS에 의해 관리됨  
+VPN을 PFN으로 매핑  
+
+Page table entry에 포함되는 Flag들  
+- Valid bit
+    - page가 사용되고 있는지 나타냄  
+- Protection bit
+    - page의 RWX 권한을 나타냄  
+- Present bit
+    - 해당 page가 메모리에 있는지, disk에 있는지 나타냄  
+- Dirty bit
+    - 해당 page가 메모리에 로드된 후 수정된 적 있는지를 나타냄  
+- Reference(Accessed) bit
+    - 해당 page가 엑세스되었는지 나타냄  
+
+<br/>
+
+**Demand Paging**  
+
+해당 page가 필요할 때 disk에서 불러옴  
+
+물리 메모리에서 page가 자리를 잃고 disk로 보내질 수도 있음  
+
+프로세스는 page가 이동하는 걸 모름  
+
+<br/>
+
+**Page Fault**  
+
+유효하지 않은 PTE(Page Table Entry)에 접근할 때 CPU에 의해 발생하는 Exception  
+- page는 유효하나 메모리에 로드되지 않았을 때(disk I/O 필요)  
+- 사용되지 않는 page에 접근 시(Segmentation violation)  
+
+page fault handling 과정  
+1. instruction 수행 위해 메모리 참조  
+2. page table에서 present bit 확인 후 메모리에 없는 page일 때 trap 발생  
+3. disk에 있는 page 내용을 물리 메모리의 비어있는 frame에 적재  
+4. page table 다시 쓰고 instruction 다시 수행  
+
+
+
+장점  
+- 외부 파편화 없음  
+- 할당을 위해 연속된 공간을 찾을 필요 없음    
+- 사용하지 않는 공간에 대한 관리가 용이해짐  
+
+단점  
+- 메모리 참조를 위해 OS가 CPU에 비해 느린 메모리 참조를 두 번 해야 함  
+    - virtual address A에 접근하기 위해  
+        - 메모리에 있는 page table을 읽고,
+        - physical address에 접근해 data fetch   
+- page 크기가 커지면 내부 파편화가 일어날 수 있음  
+- page table을 위한 공간이 필요  
+
+<br/>
+
+### 4-3. TLBs(Translation Look-aside Buffers)  
+
+하드웨어 캐시의 일종으로 MMU(memory-management unit)의 일부  
+- 교체 정책 : LRU(Least Recently Used, 사용한지 오래된 것은 교체)  
+- PFN(Pgae Frame Number) 뿐만 아니라 PTE(Page Table Entry) 전체를 캐시함  
+- context switch 발생 시 프로세스 별 PTE(page table entry)를 구별하기 위해 ASID(address space identifier) 필드를 TLB에 유지  
+
+![addressTranslationWithTLB](addressTranslationWithTLB.png)  
+
+
