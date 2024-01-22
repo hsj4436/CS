@@ -10,6 +10,7 @@
     - [Segmentation](#4-1-segmentation)
     - [Paging](#4-2-paging)
     - [TLB](#4-3-tlbstranslation-look-aside-buffers)
+    - [Swapping](#4-4-swapping)  
 
 <br/>
 
@@ -328,3 +329,54 @@ page fault handling 과정
 ![addressTranslationWithTLB](addressTranslationWithTLB.png)  
 
 
+### 4-4. Swapping  
+
+**Memory Hierarchy**  
+![memoryHierarchy](memoryHierarchy.png)  
+
+Swap space
+- 디스크의 공간 일부를 페이지 스왑 공간으로 사용  
+- swap space의 크기가 실제 사용될 메모리 페이지의 최대 수를 결정  
+- OS는 페이지 크기의 unit으로 이루어진 swap space가 어딘지 알고 있어야 함  
+- Block size는 page size와 동일  
+
+<br/>
+
+Swap 대상  
+- Kernel code, Kernel data
+    - 절대 swap되지 않음(항상 메모리에 상주)
+- Page tables for user processes
+    - Not swapped
+- Kernel stack for user processes
+    - Not swapped
+- User code pages
+    - Dropped
+    - disk에 원본이 있기 때문에 버려도 무방  
+- User data pages
+    - Dropped or swapped
+- User heap / stack pages
+    - Swapped
+- Files mapped to user processes
+    - Dropped or go to file system
+- Page cache pages
+    - Dropped or go to file system  
+
+페이지 교체 정책(알고리즘)이 swap out할 페이지를 선택  
+
+**페이지 교체 알고리즘**  
+- FIFO
+    - 페이지 교체 발생 시, 가장 먼저 들어온 페이지가 교체됨  
+    - Belady's Anomaly(모순)
+        - 캐시가 커지면 cache hit rate이 증가할 것 같지만, FIFO에서는 오히려 감소함  
+        - ![belady'sAnomaly](beladysAnomaly.png)
+- LRU
+    - Least Recently Used
+    - 오래동안 사용되지 않은 페이지를 교체  
+- LFU
+    - Least Frequently Used
+    - 참조 횟수가 가장 적은 페이지를 교체  
+- Clock Algorithm
+    - 시스템의 모든 페이지가 circular list 형태로 관리  
+    - 시침이 돌듯이 돌면서 use bit(reference bit)이 0인 페이지를 찾아 교체(reference bit이 1인 페이지는 bit를 0으로 변경)  
+
+<br/>
