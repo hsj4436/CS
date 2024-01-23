@@ -10,7 +10,15 @@
     - [Segmentation](#4-1-segmentation)
     - [Paging](#4-2-paging)
     - [TLB](#4-3-tlbstranslation-look-aside-buffers)
-    - [Swapping](#4-4-swapping)  
+    - [Swapping](#4-4-swapping) 
+- [5. Threads](#5threads) 
+    - [Process vs Thread](#5-1-process-vs-threads)
+    - [Multi-Threading의 이점](#5-2-multi-threading의-이점)
+    - [Kernel-level Thread](#5-3-kernel-level-threads)
+    - [User-level Thread](#5-4-user-level-threads)
+    - [Race Condition](#5-5-race-condition)
+    - [Lock](#5-6-locks)
+
 
 <br/>
 
@@ -380,3 +388,161 @@ Swap 대상
     - 시침이 돌듯이 돌면서 use bit(reference bit)이 0인 페이지를 찾아 교체(reference bit이 1인 페이지는 bit를 0으로 변경)  
 
 <br/>
+
+## 5.Threads  
+
+한 프로세스 내의 실행(혹은 작업) 단위이자 CPU 이용의 기본 단위  
+
+[Scheduling](#3-scheduling) 항목에서 프로세스가 스케줄링 단위인 것처럼 설명했지만, 최근에는 대부분 쓰레드가 CPU scheduling의 최소 단위이다.  
+
+쓰레드는 고유한 Thread ID, PC(Program Counter)와 SP(Stack Pointer)를 포함하는 레지스터들, Stack을 가진다.  
+
+<br/>
+
+**Context switch between Threads**  
+
+각 쓰레드는 고유의 PC와 레지스터들을 갖기 때문에 이들의 상태를 저장하고 복구하기 위해서는 쓰레드 별로 TCB(Thread Control Block)이 필요  
+
+실행중인 쓰레드(T1)에서 다른 쓰레드(T2)로 swtich 한다면,
+- T1의 레지스터 상태를 저장
+- T2의 레지스터 상태 복구
+- address space는 동일하게 남아있는다.  
+
+![twoThreadedAddressSpace](twoThreadedAddressSpace.png)  
+
+
+### 5-1. Process vs Threads  
+
+- 쓰레드는 한 개의 프로세스에 귀속된다.  
+- 프로세스는 여러개의 쓰레드를 가질 수 있다.  
+- 모두 같은 address space를 바라보기 때문에 쓰레드 간 데이터 공유는 비용이 싸다.  
+- 쓰레드는 scheduling의 단위이다.  
+- 프로세스는 쓰레드가 실행되는 컨테이너다.  
+    - PID, address space, user and group ID, open file descriptors, current working directory 등을 모든 쓰레드가 공유한다.  
+
+
+### 5-2. Multi-threading의 이점  
+- Responsiveness(응답성)
+    - 동시 이벤트를 처리할 수 있음(e.g. web servers)  
+    - 하나의 웹 서버는 여러 클라이언트들이 접근할 수 있음
+    - 단일 쓰레드로 이루어진 프로세스로 웹 서버가 작동한다면, 한 번에 하나의 클라이언트만 서비스할 수 있음  
+    - 하지만 multi threaded process라면 클라이언트의 요청을 listen하는 쓰레드를 생성하고, 클라이언트의 요청이 들어오면 요청을 처리할 새로운 쓰레드를 생성하고 계속해서 클라이언트의 요청을 listen할 수 있음  
+- Resource sharing(자원 공유)
+    - 쓰레드는 자신이 속한 프로세스의 자원들과 메모리를 공유  
+- 경제성
+    - 프로세스 생성을 위한 메모리, 자원 할당은 비용이 많이 든다.
+    - 쓰레드는 자신이 속한 프로세스의 자원들을 공유하기 때문에 쓰레드를 생성하고, context switch 하는 비용이 더 적다.  
+
+### 5-3. Kernel-level Threads  
+
+OS에 의해 관리되는 쓰레드들  
+- OS가 쓰레드와 프로세스들을 관리
+- 모든 쓰레드의 작업이 커널에 구현되어 있음  
+- 쓰레드 생성과 관리는 시스템 콜을 필요로 함  
+- OS가 모든 쓰레드들을 스케줄링함  
+- 동일한 프로세스에서 할당된 여러 개의 쓰레드 중 한 쓰레드가 Block되더라도 다른 쓰레드들은 실행 가능
+
+<br/>
+
+**한계점**  
+- 쓰레드의 작업이 모두 시스템 콜임(user mode와 kernel mode를 오가는 비용 발생)  
+- 늘어나는 쓰레드에 대해 OS가 잘 대처해야 함  
+- 커널 레벨 쓰레드는 모든 프로그래머, 언어, 런타임 시스템를 지원하기 위해 general해야 함  
+
+
+### 5-4. User-level Threads  
+- User level에서 구현된 쓰레드들
+- 프로그램에 링크된 라이브러리가 쓰레드들을 관리  
+- OS에게 보이지 않음  
+- 커널 쓰레드에 비해 가볍고 빠름  
+- Portable
+- 애플리케이션의 니즈를 충족시키기 위해 튜닝이 가능함  
+
+<br/>
+
+**한계점**  
+- OS가 사용자 레벨의 쓰레드를 인식하지 못하기 때문에, 잘못된 결정을 내릴 수 있음
+- user-level 쓰레드 중 한 쓰레드가 Block 당하면 모든 user-level 쓰레드가 Block됨  
+
+<br/>
+
+### 5-5. Race condition  
+
+공유 자원에 여러 쓰레드가 접근할 때, 접근 순서에 따라 결과가 달라지는 현상  
+
+<br/>
+
+**Critical section**  
+
+공유 자원(변수, ...)에 접근하기 때문에 둘 이상의 쓰레드가 동시에 실행하면 안되는 코드 부분  
+- 여러 개의 쓰레드가 critical section을 수행하면 race condition(경쟁 상태)에 빠질 수 있음  
+- critical section에 대한 mutual exclusion(상호 배제) 필요  
+    - atomic(전부 수행되거나 하나도 수행되지 않거나)하게 수행되어야 함  
+    - 한 개 쓰레드만 한번에 수행해야 함  
+    - 쓰레드가 critical section을 뻐나면 다른 쓰레드가 진입 가능  
+
+<br/>
+
+**Mutual exclusion**  
+
+한 쓰레드가 critical section을 실행중이라면, 다른 쓰레드가 critical section에 진입하지 못함을 보장하는 것  
+
+<br/>
+
+**Sharing Resources(공유 자원)**  
+- local variable은 쓰레드 간 공유되지 않음(stack 영역에 있지만 쓰레드들은 각자의 stack 영역을 가짐)  
+- global variable, dynamic object는 쓰레드 간 공유됨  
+
+
+공유 자원에 대한 접근을 컨트롤하는 동기화 메커니즘이 필요  
+
+<br/>
+
+### 5-6. Locks  
+
+어떤 critical section이든 하나의 atomic instruction처럼 동작하도록 보장하자  
+
+Lock variable
+- Lock의 상태를 담는 변수  
+- available(or unlocked, free)
+    - 어떤 쓰레드도 락을 갖고 있지 않음  
+- acquired(or locked, held)
+    - 정확히 한개의 쓰레드가 lock을 갖고 critical section에 있을 것  
+
+<br/>
+
+**Requirements for Locks**  
+- Correctness(정확성)
+    - Mutual exclusion
+        - 반드시 한개의 쓰레드만 critical section에 있어야 함  
+    - Progress(deadlock-free)
+        - 만약 여러 쓰레드가 critical section에 진입하고 싶어 한다면, 반드시 하나는 진입하도록 해야 한다  
+    - Bounded waiting(starvation-free)
+        - 결국엔 반드시 대기중인 쓰레드들이 critical section에 진입할 수 있도록 해야함  
+- Fairness(공정성)
+    - 각 쓰레드는 lock을 획득하는 데 있어 공정한 기회를 가짐  
+- Performance(성능)  
+
+<br/>
+
+**Spin lock**  
+다른 쓰레드가 Lock을 소유하고 있다면, 해당 Lock이 반환될 때까지 계속 확인하면 기다리는 것  
+
+<br/>
+
+**Lock의 구현**
+- interrupts 컨트롤(매우 초창기) 
+    - critical section에 대한 interrupt가 불가능하도록  
+    - lock과 관련된 상태가 없음  
+    - interrupt가 불가능하도록 했기 때문에 application이 자발적으로 CPU를 양보할 것이라는 믿음을 바탕에 깔아야 함  
+    - 멀티프로세서 시스템에서는 동작하지 않음  
+- 소프트웨어, 알고리즘을 통한 구현
+- atomic instruction 하드웨어
+    - Test-And-Set(Atomic Exchange)
+    - Compare-And-Swap
+    - Load-Linked(LL) and Store-Conditional(SC)
+    - Fetch-And-Add
+    - Ticket Lock
+
+<br/>
+
