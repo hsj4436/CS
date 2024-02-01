@@ -18,7 +18,7 @@
     - [User-level Thread](#5-4-user-level-threads)
     - [Race Condition](#5-5-race-condition)
     - [Lock](#5-6-locks)
-
+    - [Semaphore](#5-7-semaphore)
 
 <br/>
 
@@ -545,4 +545,100 @@ Lock variable
     - Ticket Lock
 
 <br/>
+
+### 5-7. Semaphore  
+
+정수 값 하나를 갖는 객체  
+- wait(), post() 두 함수를 호출해 조작할 수 있음  
+
+```C
+#include <semaphore.h>
+sem_t s;
+sem_init(&s, 0, 1);
+```
+
+초기화(sem_init)의 두 번째 인자는 같은 프로세스 내에서 쓰레드 간 공유 여부를 나타낸다.
+- 0일 경우 프로세스 내에서 쓰레드들끼리 공유
+- 1일 경우 프로세스 간 공유  
+
+세 번째 인자는 세마포어가 가지는 초기 값  
+
+***sem_wait()***
+```C
+int sem_wait(sem_t *s) {
+    // decrement the value of semaphore s by one
+    // wait if value of semaphore s is negative
+}
+```
+
+세마포어 값을 1 감소시킨 후, 세마포어 값이 음수라면 대기하고 그렇지 않다면 return.   
+세마포어 값이 음수라면, 이는 wait 중인 쓰레드의 수를 나타내는 것이다.  
+
+<br/>
+
+***sem_post()***
+```C
+int sem_post(sem_t *s) {
+    // increment the value of semaphore s by one
+    // if there are one or more thraeds waiting, wake one
+}
+```
+
+세마포어 값을 1 증가시킨다.  
+wait 중인 쓰레드가 있다면, 그 중 하나를 깨운다.   
+
+<br/>
+
+Binary Semaphore(세마포어 값이 1)의 동작  
+Lock 처럼 사용
+
+```C
+sem_t s;
+set_init(&s, 0, 1);
+
+sem_wait(&s);
+// critical section
+sem_post(&s);
+```  
+
+<br/>
+
+두 개 쓰레드(T1, T2)가 Binary Semaphore를 사용한다면  
+
+![twoThreadsUsingBinarySemaphore](twoThreadsUsingBinarySemaphore.png)  
+
+
+<br/>
+
+***Dining Philoshpers***  
+
+![diningPhilosophers](diningPhilosophers.png)  
+- Pn : 철학자
+- fn : 포크  
+
+
+철학자들이 원형 식탁에 앉아 식사를 한다.  
+각 철학자 양 쪽에는 포크가 하나씩 놓여져 있으며, 음식을 먹기 위해선 양쪽의 포크 2개를 모두 들어야 한다.  
+
+두 개 포크를 집는 행위를 Lock, 음식을 먹는 행위를 Critical section으로 생각할 수 있는 유명한 문제  
+
+Deadlock 없이, 누구도 굶지 않고 음식을 먹을 수 있을까?  
+
+모두가 같은 순서(왼쪽 포크부터 잡고, 오른쪽 포크를 잡는)로 포크를 잡는다면  
+- 모두가 동시에 왼쪽 포크를 잡으면 그 누구도 오른손에는 포크를 잡을 수 없다.
+- Deadlock 발생  
+
+<br/>
+
+이를 해결하기 위한 가장 간단한 방법은 철학자들 중 한명은 오른쪽 포크부터 잡도록 순서를 바꾸는 것이다.  
+
+<br/>
+
+### 5-8. Mutex  
+
+**MUTual EXclusion locks**  
+
+오직 하나의 쓰레드만 mutex를 통해 lock을 획득할 수 있다.  
+- T1이 mutex를 통해 lock을 획득한 상태에서, T2가 mutex를 통해 lock을 획득하려 들면 T1이 mutex를 통해 얻은 lock을 해제할 때까지 기다려야 한다.  
+- 이를 통해 공유 자원에 대한 동시 접근을 막음  
 
