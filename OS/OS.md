@@ -19,6 +19,7 @@
     - [Race Condition](#5-5-race-condition)
     - [Lock](#5-6-locks)
     - [Semaphore](#5-7-semaphore)
+- [6. File system](#6-file-system)
 
 <br/>
 
@@ -634,11 +635,155 @@ Deadlock 없이, 누구도 굶지 않고 음식을 먹을 수 있을까?
 
 <br/>
 
-### 5-8. Mutex  
+## 6. File system  
 
-**MUTual EXclusion locks**  
+**File System Layers**  
+![fileSystemLayers](fileSystemLayers.png)  
 
-오직 하나의 쓰레드만 mutex를 통해 lock을 획득할 수 있다.  
-- T1이 mutex를 통해 lock을 획득한 상태에서, T2가 mutex를 통해 lock을 획득하려 들면 T1이 mutex를 통해 얻은 lock을 해제할 때까지 기다려야 한다.  
-- 이를 통해 공유 자원에 대한 동시 접근을 막음  
+<br/>
+
+Abstractions for Storage
+- File
+    - 영구 스토리지에 기록된 이름이 있는 서로 연관된 정보들의 집합
+    - 각 파일은 inode number(internal file ID)를 가짐
+    - 부여되는 inode number들은 파일 시스템 내에서 유니크함
+- Directory
+    - 파일들을 조직화할 수 있는 구조 제공
+    - 사용자가 읽을 수 있는 파일 이름을 해당 inode number에 매핑하는 데 사용되는 특수한 파일
+        - list of <file name, inode number>
+    - 계층적인 디렉토리 트리
+        - 디렉토리는 다른 디렉토리 내에 위치할 수 있음  
+
+<br/>
+
+**File System Basic**  
+
+File
+- File contents (data)
+    - byte 배열
+    - 파일 시스템은 일반적으로 file contents가 무엇이든 신경쓰지 않음  
+- File attributes (metadata or inode)
+    - File type
+        - regular, directory, symlink, ...
+    - 파일이 들어있는 Device의 ID
+    - Inode number
+    - 접근 허가
+        - rwx(read, write, execute) for owner(u), group(g), and others(o)
+    - 하드 링크의 수
+    - 소유자의 User ID와 group ID
+    - byte 단위의 파일 크기
+    - 할당된 512B 블록 수
+    - 마지막 접근 시간(atime), 마지막 수정 시간(mtime), 마지막 상태 변경 시간(ctime)  
+
+<br/>
+
+**Hard link vs. Symbolic link**  
+
+- Hard link
+    ```bash
+    ln old.txt new.txt
+    ```
+    - 두 pathname은 같은 inode number 사용
+    - 어떤 것이 원본인지 알 수 없음
+    - Inode는 하드 링크의 수를 유지
+    - 파일 삭제(Deleting, unlinking) 시 링크 수가 감소
+    - 링크 수가 0이 되면 inode가 제거됨
+    - 디렉토리에는 하드 링크 생성 불가
+- Symbolic link
+    ```bash
+    ln -s old.txt new.txt
+    ```
+    - 새 파일(new.txt)에는 source 파일 혹은 디렉토리에 대한 상대/절대 경로에 대한 참조(reference)가 포함되어 있음  
+
+<br/>
+
+
+**VSFS(Very Simple File System)**  
+수업 자료에서 파일 시스템 설명을 위해 채택한 간단한 파일 시스템 예시  
+
+
+Data Blocks
+- 디스크를 일정 크기의 블록으로 나누었을 때 해당 블록 중 대부분을 차지하는 요소 
+- user의 데이터를 저장하는데 사용  
+
+<br/>
+
+Inodes
+- inode는 메타데이터를 갖고 있음  
+- inode의 크기는 고정(보통, 128B ~ 256B)  
+- inode 당 256B일 때, 4KB 블록은 16개의 inode를 가짐  
+- inode 블록의 수와 inode의 크기를 바탕으로 다룰 수 있는 최대 파일 수를 계산 가능  
+
+<br/>
+
+Bitmaps
+- Data bitmap & Inode bitmap  
+- 각 비트(bit)는 해당 block/inode가 사용중(1)인지 비어있는지(0)를 나타냄  
+- 하나의 data bitmap(또는 inode bitmap) 블록은 최대 32K data blocks(또는 inodes)를 지원할 수 있음  
+
+<br/>
+
+Superblock  
+- Superblock은 파일시스템의 메타데이터를 갖고 있음  
+    - File system type
+    - Block size
+    - Total number of blocks
+    - Number of inodes
+    - Number of data / inode bitmap blocks, ...  
+
+<br/>
+
+![simpleFileSystem](simpleFileSystem.png)
+
+파일 시스템을 마운트하게 되면, OS는 가장 먼저 superblock을 읽고 다양한 정보를 초기화함  
+
+
+<br/>
+
+**disk block들과 file 간 매핑**
+
+1.File Allocation Table(FAT)  
+
+linked allocation의 변형
+- 모든 파일의 linked list 정보를 FAT에 유지  
+- FAT는 메인 메모리에 캐시됨  
+- Metadata : <starting block #> + FAT
+- random access 성능 개선(단순 linked list 방식은 data block에 포인터 공간을 따로 둬야했음)  
+
+![FAT](FAT.png)  
+
+<br/>
+
+2.Indexed Allocation  
+
+각 파일에 고정된 크기의 블록을 할당
+- Metadata : 블록 포인터를 담은 배열  
+- 각 블록 포인터는 데이터가 저장된 블록을 가리킴  
+- 메타데이터로 인해 오버헤드 발생
+    - 사용되지 않는 포인터들을 위해 공간을 낭비함  
+
+![Indexed Allocation](indexedAllocation.png)  
+
+<br/>
+
+3.Multi-level Indexing  
+
+indexed allocation의 변형
+- 포인터 계층을 데이터 블록에 동적으로 할당  
+- Metadata : direct pointers + indirect pointers  
+- Example : Unix FFS, Linux Ext2/3  
+- 동적으로 포인터를 할당하기 때문에 indexed allocation에서 있었던 포인터로 인한 공간 낭비를 해결  
+- 주소 계산을 위해 포인터의 indirect block을 read해야 함(추가적인 disk read)  
+
+![Multi-level Indexing](multi-levelIndexing.png)  
+
+4.Extent-based Allocation  
+
+파일당 여러 개의 연속된 영역(블록) 할당
+- extent(연속된 블록)를 multi level tree처럼 구성
+    - e.g. B+ tree
+- Each leaf node : <starting block #, extent size>
+- Example : Linux Ext4  
+
+![extent-based Allocation](extent-basedAllocation.png)  
 
