@@ -1,5 +1,18 @@
 # Network  
 
+- [1. OSI 7 Layer](#1-osi-7-layer)
+- [2. TCP/IP Protocol](#2-tcpip-protocol)
+- [3. Data Link(L2)](#3-data-linkl2)
+- [4. Network(L3)](#4-networkl3)
+- [5. Transport(L4)](#5-transportl4) 
+    - [UDP](#udp)
+    - [TCP](#tcp)
+    - [HandShake](#handshake)
+- [6. Application(L5)](#6-applicationl5)  
+    - [DNS](#dns)
+
+<br/>
+
 ## 1. OSI 7 Layer  
 
 **Layered Architecture**
@@ -172,7 +185,131 @@ Routing(Control plane, S/W)
 |Routing info.|Distance-Vector|Link-State|
 |Exchange with| Neighbor Routers|All Routers in the Network|
 |Standard Routing Protocol| RIP <br/> (Routing Information Protocol) | OSPF  <br/> (Open Shortest Path First)|
-|   | 최소 비용 경로의 계산이 라우터들에 의해 반복적이고 분산된 방식으로 수행됨  |  네트워크 전체에 대한 완전한 정보를 가지고 출발지와 목적지 사이의 최소 비용 경로를 계산 |
+|   | 최소 비용 경로의 계산이 라우터들에 의해 반복적이고 분산된 방식으로 수행됨  |  네트워크 전체에 대한 완전한 정보를 가지고 출발지와 목적지 사이의 최소 비용 경로를 계산 |  
+  
+<br/>
 
 
+## 5. Transport(L4)    
 
+서로 다른 호스트에서 동작하는 애플리케이션 프로세스에게 직접 통신 서비스를 제공하는 역할  
+
+소켓 - 네트워크 -> 프로세스, 프로세스 -> 네트워크로 데이터를 전달하는 출입구  
+
+Transport(L4) 계층은 데이터를 직접 프로세스로 전달하지 않고 소켓에게 전달  
+
+<br/>
+
+### UDP  
+비신뢰, 비연결형  
+1대1 통신(unicast), 1대다 통신(broadcast), 다대다 통신(multicast)  
+
+1. 다중화/역다중화  
+2. 간단한 오류검사  
+
+TCP의 3-way handshake 과정이 없기 때문에 TCP보다 빠름  
+
+<br/>
+
+UDP 세그먼트의 구조(헤더 + 데이터)  
+![UDPSegment](UDPSegment.png)
+
+<br/>
+
+### TCP  
+신뢰, 연결형  
+데이터의 순서 유지를 위해 각 바이트마다 번호 부여  
+handshake를 통해 연결  
+1대1 통신(unicast)  
+흐름 제어(수신자 버퍼 오버플로우 방지)  
+혼잡 제어(네트워크 내 패킷 수가 과도하게 증가하는 현상 방지)  
+전이중(Full-Duplex), 점대점(Point to Point) 서비스  
+
+<br/>
+
+TCP 세그먼트(헤더 + 데이터)  
+![TCPSegment](TCPSegment.png)  
+
+
+### handshake  
+3-way handshake를 통해 연결, 4-way handshake를 통해 해제  
+
+**3-way handshake**  
+![3WayHandshake](3WayHandshake.png)  
+
+1.Client > Server  
+- TCP 세그먼트 헤더의 SYN Flag 1로 설정  
+- sequence number를 TCP 세그먼트 헤더의 sequence number에 설정  
+
+2.Server > Client  
+- 클라이언트가 보낸 데이터그램의 SYN Flag를 확인  
+- 연결에 사용될 버퍼와 변수들을 할당  
+- SYN Flag를 1로 설정  
+- ACK number 필드를 받은 TCP 세그먼트 헤더의 sequence number + 1로 설정  
+- sequence number를 TCP 세그먼트 헤더의 sequence number에 설정  
+
+3.Client > Server  
+- SYN Flag와 ACK를 확인 후 연결에 사용될 버퍼와 변수 할당  
+- 서버에게서 받은 sequence number + 1로 ACK number필드 설정  
+- 서버로 전송  
+
+<br/>
+
+**4-way handshake**  
+![4WayHandshake](4WayHandshake.png)  
+
+1.Client > Server  
+- TCP 세그먼트 헤더의 FIN Flag를 1로 설정 후 전송  
+
+2.Server > Client  
+- Client가 보낸 세그먼트를 수신했다는 의미로 ACK를 담아 전송  
+
+3.Server > Client  
+- TCP 세그먼트 헤더의 FIN Flag를 1로 설정 후 전송  
+
+4.Client > Server  
+- Server가 보낸 세그먼트를 수신했다는 의미로 ACK를 담아 전송  
+- 연결하며 할당했던 자원(버퍼, 변수) 해제  
+
+<br/>
+
+**File download(Client PC - Server) example**  
+![downloadFileExample](_downloadFileExample.png)  
+(출처 - https://youtu.be/K9L9YZhEjC0)  
+
+<br/>
+
+## 6. Application(L5)  
+SMTP, HTTP, FTP, SSL, ...  
+
+
+### DNS  
+계층적으로 이루어진 분산형 데이터베이스  
+Domain name을 IP address로 변환하는 역할  
+
+![DNSHierarchy](DNSHierarchy.png)  
+(출처 - KISA, https://www.kisa.or.kr/1041103)  
+
+<br/>
+
+**www.naver.com 입력시**  
+1. PC의 DNS cache 검색  
+2. DNS에 질의  
+    1. ISP가 보유한 DNS가 응답  
+    2. 상위 DNS에 질의 후 응답  
+
+![DNSQuery](DNSQuery.png)  
+
+<br/>
+
+**DNS 유형**  
+1. Root DNS  
+    - 전 세계에 13개  
+2. TLD(Top-Level-Domain) servers  
+    - com, org, net 등의 최상위 레벨 혹은 국가 도메인(uk, fr, ca, kr, ...)  
+    - .com  
+    - .edu  
+3. Local DNS  
+    - 계층에 속하지 않음  
+    - ISP가 local DNS 서버를 가짐  
+    - Host가 DNS query를 만들면 Local DNS에 보내짐  
